@@ -1,0 +1,36 @@
+name: azzurra-testnet
+
+# Harness overlay for the synthetic-corpus generator. Use ON TOP of the
+# base compose:
+#
+#   docker compose -f compose.yaml -f harness/compose.harness.yaml up -d --wait
+#   docker compose -f compose.yaml -f harness/compose.harness.yaml \
+#       run --rm corpus --seed 1 --users 1000 --channels 1000 --out /out/seed-1
+#
+# Two overrides against the base file:
+#   1. services gets SVC_AKILL_CLONES=0 — the runner opens every session
+#      from one container IP, and CLONEKILL's default 5 would autokill the
+#      run on the 5th connection (same false positive as the grappa
+#      bouncer; see services/conf.tmpl). Valid values: 0 (off) or 5..50.
+#   2. adds the `corpus` runner attached to ALL THREE networks so it can
+#      spread clients across hub + leaf4 + leaf6 (class Y:1 caps 512 local
+#      clients per server).
+services:
+  services:
+    environment:
+      SVC_AKILL_CLONES: 0
+
+  # profiles: keep `corpus` out of `up -d --wait` — it is a one-shot
+  # driver (argparse exits 2 with no args, which fails the whole up).
+  # `compose run --rm corpus ...` auto-enables the profile.
+  corpus:
+    profiles: [corpus]
+    build:
+      context: ./harness
+    init: true
+    volumes:
+      - ./harness/out:/out
+    networks:
+      svc-net:
+      leaf4-net:
+      leaf6-net:

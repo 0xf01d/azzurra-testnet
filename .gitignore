@@ -4,3 +4,4 @@ certs/*.key
 certs/ircd.cloak
 __pycache__/
 *.pyc
+harness/out/

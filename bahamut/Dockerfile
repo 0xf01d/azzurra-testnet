@@ -24,6 +24,15 @@ COPY options.h_hub include/options.h
 # so it stays trivially auditable. Rationale for disabling:
 # infra/bahamut/options.h_hub's NO_CHANOPS_WHEN_SPLIT block.
 RUN sed -i '/^#define NO_CHANOPS_WHEN_SPLIT$/d' include/config.h
+# Cap the async resolver's per-query patience (src/res.c make_request):
+# retries 3 with a 4s exponential timeout (4+8+16 = 28s) serializes client
+# registrations whenever a PTR is not answered locally — at corpus-harness
+# scale (hundreds of concurrent connects) that backs the whole accept path
+# up for minutes. The testnet never needs resolved hostnames (clients are
+# docker IPs; I: lines are *@*), so cap retries at 1 with a 1s first
+# timeout: worst case ~1s per client, still non-zero for real DNS envs.
+RUN sed -i -e 's/nreq->retries = 3;/nreq->retries = 1;/' \
+           -e 's/nreq->timeout = 4;/nreq->timeout = 1;/' src/res.c
 RUN autoconf && ./configure && make
 
 FROM debian:trixie-slim
