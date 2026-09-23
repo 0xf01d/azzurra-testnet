@@ -3,11 +3,7 @@ name: corpus
 # Synthetic migration-test corpora: 10 seeded runs of the azzurra-testnet
 # harness (1000 users / 1000 channels each, every command journaled,
 # flatfiles snapshotted). One archive artifact per seed.
-#
-#   katia: "generate synthetic data of 1000 users more or less and 1000
-#   channels, all by real commands, save all the commands issued by
-#   everyone, save this database ... do this 10 times ... fully automated"
-#   (azzurra-testnet harness; consumes issue 0xf01d/atheme-it#5)
+# Consumes the requirements of atheme-it#5 (migration fixtures at scale).
 
 on:
   workflow_dispatch:
