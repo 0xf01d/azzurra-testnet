@@ -108,6 +108,42 @@ BAHAMUT_TAG=bahamut-pr-2010 \
 
 `bahamut/Dockerfile` and `services/Dockerfile` support branches, tags, full SHAs, and `refs/pull/N/head` via `BAHAMUT_REF` / `SERVICES_REF` when building locally.
 
+## Synthetic corpora (`harness/`)
+
+Migration-test data generator for [atheme-it#5](https://github.com/0xf01d/atheme-it/issues/5):
+drives ~1000 synthetic users + ~1000 channels through REAL services commands
+against this testnet, journals every issued command, and snapshots the
+resulting flatfiles. Fully automated end-to-end.
+
+```
+docker compose -f compose.yaml -f harness/compose.harness.yaml up -d --wait
+docker compose -f compose.yaml -f harness/compose.harness.yaml run --rm \
+    corpus --seed 1 --users 1000 --channels 1000 --out /out
+docker compose -f compose.yaml -f harness/compose.harness.yaml stop services
+docker cp azzurra-services:/opt/azzurra/services/data/. harness/out/seed-1/db/
+```
+
+or one command for the whole cycle (workload + graceful flatfile save +
+`.tar.zst` archive):
+
+```
+harness/run.sh SEED [USERS] [CHANNELS]     # default 1000/1000
+```
+
+- The overlay sets `SVC_AKILL_CLONES=0` on services — every client connects
+  from the runner's single container IP, and the CLONEKILL default (5) would
+  autokill the run on the 5th connection (same false positive as grappa's;
+  see `services/conf.tmpl`).
+- Clients are spread across hub + leaf4 + leaf6: bahamut class `Y:1` caps
+  512 local clients per server.
+- Two waves per run: register-all first (CS ACCESS ADD needs registered
+  targets), then channel work + ambient traffic.
+- Per-seed output: `journal.ndjson` (every raw line), `passwords.json`
+  (nick/channel credentials — the migration fixtures' known verifiers),
+  `manifest.json` (counts/timing/errors), `db/` (nick.db, chan.db, ...).
+- `.github/workflows/corpus.yml` runs 10 seeded full-scale runs in a matrix
+  and uploads one artifact per seed (smoke-scale 50/50 gate first).
+
 ## Non-goals
 
 - Production TLS / real certs — throwaway self-signed only.
