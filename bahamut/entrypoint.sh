@@ -39,6 +39,19 @@ esac
 OPER_PASS_HASH="$(mkpasswd --method=des "${OPER_PASS}")"
 export OPER_PASS_HASH
 
+# Cap the resolver's per-query timeout/attempts BEFORE the ircd starts.
+# bahamut completes client registration through its (serialized) resolver —
+# a PTR for a docker-network client IP that 127.0.0.11 forwards upstream
+# costs the full glibc default (2 attempts x 5s) PER CONNECTION, and
+# concurrent connections queue behind it (28-40s bursts at ~20 clients,
+# minutes at corpus scale). timeout:1 attempts:1 caps the worst case at
+# ~1s/client; PTRs that 127.0.0.11 answers locally stay instant.
+if [ -w /etc/resolv.conf ]; then
+    grep -q '^options ' /etc/resolv.conf \
+        && sed -e 's/^options .*/& timeout:1 attempts:1/' -i /etc/resolv.conf \
+        || printf 'options timeout:1 attempts:1\n' >> /etc/resolv.conf
+fi
+
 # Second, shared testnet O-line (Sonic's request): fixed user "azzurra"
 # with fixed password "azzt3st" (DES-crypted at boot), so staff poking at
 # the testnet can /oper without chasing the per-boot OPER_NICK/OPER_PASS.

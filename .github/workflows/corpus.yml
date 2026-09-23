@@ -1,0 +1,41 @@
+name: corpus
+
+# Synthetic migration-test corpora: 10 seeded runs of the azzurra-testnet
+# harness (1000 users / 1000 channels each, every command journaled,
+# flatfiles snapshotted). One archive artifact per seed.
+# Consumes the requirements of atheme-it#5 (migration fixtures at scale).
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: users per run
+        default: "1000"
+      channels:
+        description: channels per run
+        default: "1000"
+  push:
+    paths:
+      - harness/**
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke-scale gate (50/50) before the full run
+        run: harness/run.sh ${{ matrix.seed }} 50 50
+
+      - name: Full run (seed ${{ matrix.seed }})
+        run: harness/run.sh ${{ matrix.seed }} ${{ inputs.users || '1000' }} ${{ inputs.channels || '1000' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-seed-${{ matrix.seed }}
+          path: harness/out/seed-*.tar.zst
+          retention-days: 30
